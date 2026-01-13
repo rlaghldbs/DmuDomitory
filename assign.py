@@ -8,7 +8,7 @@ import re
 import os
 from tkinter import Tk, filedialog
 import sys
-sys.stdout.reconfigure(encoding='utf-8')
+#sys.stdout.reconfigure(encoding='utf-8')
 
 # --- 1. 기본 설정 및 전역 변수 ---
 KAKAO_API_KEY = ""
@@ -47,7 +47,7 @@ def load_config_from_excel(config_file='./설정.xlsx'):
     try:
         df = pd.read_excel(config_file)
         data = dict(zip(df['항목'].astype(str).str.strip(), df['값']))
-        print(data)
+        # print(data)
 
         # 1. API 키 로드
         KAKAO_API_KEY = str(data.get('카카오키', '')).strip()
@@ -128,7 +128,7 @@ def get_odsay_transit_info(origin_coords, dest_coords, api_key=ODSAY_API_KEY):
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
-        print(data)
+        # print(data)
         if "error" in data or not data.get('result') or not data.get('result').get('path'): print("Error in ODsay API response"); return None
         return data['result']['path'][0]
     except: return None
@@ -192,7 +192,7 @@ def main():
     global BASELINE_MONTHLY_COST, HEADWAY_THRESHOLD, WCBI_WEIGHT, GPA_WEIGHT
     global F_TRANSFER_PENALTY, MODEL_ALPHA
 
-    print("=== 기숙사 배정 자동화 프로그램 V9.5.2 (설정 파일 연동 강화) ===")
+    print("=== 기숙사 배정 자동화 프로그램 ===")
     
     # 1. 엑셀 설정 로드
     config = load_config_from_excel('./설정.xlsx')
