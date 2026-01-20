@@ -267,7 +267,7 @@ class DomitoryAssignment:
             if isinstance(time, (int, float)) and not pd.isna(time):
                 # 가중치 적용
                 weight = 1.0
-                if traffic == 7: weight = 2.0#비행기
+                if traffic == 7: weight = 3.0#비행기
                 elif traffic == 6: weight = 1.5#시외버스
             
                 raw_scores.append(float(time) * weight)
