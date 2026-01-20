@@ -11,8 +11,6 @@ import os
 from tkinter import Tk, filedialog
 import sys
 
-from assign import calculate_wcbi_score
-from assign_clear import find_flexible_column
 
 
 
@@ -234,19 +232,19 @@ class DomitoryAssignment:
             sid = row[self.id_col]; addr = row[self.address_col]
             
             if pd.isna(addr):
-                self.score_results.append([sid, "주소 없음"] ); continue
+                self.score_results.append([sid, "주소 없음",0] ); continue
             scoords = self.get_kakao_coordinates(addr, self.Kakao_API_Key)
             if not scoords[0]:
-                self.score_results.append([sid, "주소 변환 실패"]); continue
+                self.score_results.append([sid, "주소 변환 실패", 0]); continue
                 
             rdata = self.get_odsay_transit_info(scoords, school_coords, self.ODsay_API_Key)
             # wcbi, *dets, stat = calculate_wcbi_score(rdata)
             # score_results.append([sid, wcbi, stat] + dets)
             if rdata is None:
-                self.score_results.append([sid, "경로 탐색 실패"] ); continue
+                self.score_results.append([sid, "경로 탐색 실패", 0]); continue
             info= rdata.get('info', {})
             total_time = info.get('totalTime', 0)
-            subpaths = info.get('subPath', []) # ODsay API는 대문자 P를 사용하는 경우도 있으니 확인 필요
+            subpaths = rdata.get('subPath', []) # ODsay API는 대문자 P를 사용하는 경우도 있으니 확인 필요
             if not subpaths:
                 # 경로 정보가 없으면 '경로 없음'으로 처리하고 다음 학생으로
                 self.score_results.append([sid, "경로 없음", 0])
@@ -264,12 +262,12 @@ class DomitoryAssignment:
         raw_scores = []
         for row in self.score_results:
             time = row[1]
-            traffic = row[2]
+            traffic = row[2] if len(row) > 2 else 0         
         
             if isinstance(time, (int, float)) and not pd.isna(time):
                 # 가중치 적용
                 weight = 1.0
-                if traffic == 7: weight = 2.0#비행기
+                if traffic == 7: weight = 3.0#비행기
                 elif traffic == 6: weight = 1.5#시외버스
             
                 raw_scores.append(float(time) * weight)
@@ -282,15 +280,22 @@ class DomitoryAssignment:
 
         # 3. 최댓값을 70점으로 환산하여 최종 리스트를 만듭니다.
         final_calculated_results = []
+
         for i, row in enumerate(self.score_results):
-            if row[1] is not None and not pd.isna(row[1]):
-                # 공식: (내 점수 / 1등 점수) * 70
+           
+            sid = row[0]
+            time_val = row[1]
+            traffic_val = row[2]
+
+            if raw_scores[i] > 0:
                 final_score = (raw_scores[i] / max_raw_score) * 70
-                final_calculated_results.append(row + [round(final_score, 2)])
+                # [학번, 시간, 교통, 점수] 형태로 새로 리스트 구성
+                final_calculated_results.append([sid, time_val, traffic_val, round(final_score, 2)])
             else:
-                final_calculated_results.append(row + [np.nan])
+                final_calculated_results.append([sid, time_val, traffic_val, 0.0])
                 
-        self.score_results = final_calculated_results
+        self.score_results = final_calculated_results # 클래스 변수 업데이트
+        print("-> 통학 점수 환산 완료.")
     
 
     def make_Frame(self):
@@ -305,6 +310,8 @@ class DomitoryAssignment:
             on=self.id_col, # left_on, right_on 대신 on 하나만 써도 됩니다.
             how='left'
         )
+
+        df_final['통학 점수(70점)'] = df_final['통학 점수(70점)'].fillna(0)
         df_final['성적 점수(30점)'] = df_final[self.gpa_col].apply(self.calculate_score)  #환산식 수정 260115
 
         df_final['최종 점수'] = df_final['통학 점수(70점)'] + df_final['성적 점수(30점)']
