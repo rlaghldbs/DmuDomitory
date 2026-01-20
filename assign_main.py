@@ -11,8 +11,6 @@ import os
 from tkinter import Tk, filedialog
 import sys
 
-from assign import calculate_wcbi_score
-from assign_clear import find_flexible_column
 
 
 
