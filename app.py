@@ -9,7 +9,7 @@ import sys
 import numpy as np 
 import re 
 import os
-from tkinter import Tk, filedialog
+# from tkinter import Tk, filedialog
 import sys
 import streamlit as st
 
