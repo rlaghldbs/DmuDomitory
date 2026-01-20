@@ -432,7 +432,7 @@ class DomitoryAssignment:
 
 def __main__():
     
-    st.set_page_config(page_title="Dormitory Assignment", layout="wide")
+    st.set_page_config(page_title="🏨 기숙사생 산정 프로그램", layout="wide")
     st.title("🏨 기숙사생 산정 프로그램")
 
     domitory_assignment = DomitoryAssignment("./설정.xlsx")
