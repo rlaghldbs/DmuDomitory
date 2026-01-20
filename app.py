@@ -433,7 +433,7 @@ class DomitoryAssignment:
 def __main__():
     
     st.set_page_config(page_title="Dormitory Assignment", layout="wide")
-    st.title("🏨 기숙사 거리 계산기")
+    st.title("🏨 기숙사생 산정 프로그램")
 
     domitory_assignment = DomitoryAssignment("./설정.xlsx")
         # --- 파일 선택 --
