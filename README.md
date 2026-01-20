@@ -1,1 +1,4 @@
-안될때는 api 사이트에서 ip 차단 있으니 0.0.0.0 으로 설정 후 확인 할 것
+app.py -> 웹 버전
+assign_main -> CUI 버전
+
+<h3>streamlit run app.py</h3> 로 실행
