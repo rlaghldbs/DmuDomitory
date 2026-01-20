@@ -48,21 +48,23 @@ class DomitoryAssignment:
 
 
  
-    def __init__(self,configfile="./설정.xlsx"):
+    # def __init__(self,configfile):
         
-        self.configfile = configfile
-        self.load_config()
-        if configfile is None:
-            print("\n[중단] 설정 파일 검증을 통과하지 못했습니다.")
-            print("설정.xlsx 파일을 수정 후 다시 실행해주세요.")
-            input("엔터 키를 누르면 종료합니다...")
-            return
+        
+      
+        # if configfile is None:
+        #     print("\n[중단] 설정 파일 검증을 통과하지 못했습니다.")
+        #     print("설정.xlsx 파일을 수정 후 다시 실행해주세요.")
+        #     input("엔터 키를 누르면 종료합니다...")
+        #     return
+        # self.configfile = configfile
+        # self.load_config()
 
 
-    def load_config(self):
+    def load_config(self, configfile):
 
         try:
-            df = pd.read_excel(self.configfile)
+            df = pd.read_excel(configfile)
             data = dict(zip(df['항목'].astype(str).str.strip(), df['값']))
             self.Kakao_API_Key = str(data.get('카카오키', '')).strip()
             self.ODsay_API_Key = str(data.get('오디세이키', '')).strip()
@@ -70,12 +72,12 @@ class DomitoryAssignment:
             print(f"[오류] 설정 파일 로드 실패: {e}")
 
 
-    def select_file(self, title="파일 선택", filetypes=(("Excel files", "*.xlsx"), ("All files", "*.*"))):
-        root = Tk()
-        root.withdraw()  # Hide the root window
-        file_path = filedialog.askopenfilename(title=title, filetypes=filetypes)
-        root.destroy()
-        return file_path if file_path else None
+    # def select_file(self, title="파일 선택", filetypes=(("Excel files", "*.xlsx"), ("All files", "*.*"))):
+    #     root = Tk()
+    #     root.withdraw()  # Hide the root window
+    #     file_path = filedialog.askopenfilename(title=title, filetypes=filetypes)
+    #     root.destroy()
+    #     return file_path if file_path else None
     
     #숫자만 강제 추출
     def robust_to_numeric(self,series):
@@ -272,8 +274,9 @@ class DomitoryAssignment:
                 # 가중치 적용
                 weight = 1.0
                 if traffic == 7: weight = 3.0#비행기
-                elif traffic == 6: weight = 1.5#시외버스
-            
+                elif traffic == 6: weight = 2.2#시외버스
+                elif traffic == 4: weight = 2#기차
+                          
                 raw_scores.append(float(time) * weight)
             else:
                 raw_scores.append(0.0)
@@ -434,8 +437,9 @@ def __main__():
     
     st.set_page_config(page_title="🏨 기숙사생 산정 프로그램", layout="wide")
     st.title("🏨 기숙사생 산정 프로그램")
-
-    domitory_assignment = DomitoryAssignment("./설정.xlsx")
+    config_file = st.file_uploader("설정 파일 업로드", type=['xlsx'])
+    domitory_assignment = DomitoryAssignment()
+    domitory_assignment.load_config(config_file)
         # --- 파일 선택 --
         
     # domitory_assignment.assign_room()
