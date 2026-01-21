@@ -432,10 +432,50 @@ class DomitoryAssignment:
             
             
         input("\n엔터 키를 누르면 종료합니다...")    
+    def make_system_form(self,df_final, room_price_map, gender_col, id_col, lifepattern_col):
+    # 1. 이름 변환용 매핑 (짧은 이름 -> 긴 이름)
+    # 로직 내부에서는 'A형'으로 쓰지만, 출력할 때는 풀네임으로 바꿔줍니다.
+        short_to_long = {
+        'A형': 'A형(기숙사형 2인호의 2인실)',
+        'B형': 'B형(기숙사형 2인호의 1인실)',
+        'C형': 'C형(기숙사형 3인호의 1인실)',
+        'D형': 'D형(기숙사형 3인호의 2인실)',
+        'E형': 'E형(기숙사형 4인호의 2인실)',
+        'F형': 'F형(아파트형 1인실(여학생 전용))',
+        'G형': 'G형(아파트형 2인실(여학생 전용))'
+    }
+    
+        output_df = pd.DataFrame()
+        
+        # 2. 시스템 양식에 맞춘 컬럼 매핑
+        form_cols = {
+            '기숙사 실': '배정된 방',
+            '성별': gender_col,
+            '학번': id_col,
+            '성명': '성명(필수)',
+            '학과(필수)': '학과(필수)',
+            '본인 핸드폰 번호': '본인 핸드폰 번호(필수)',
+            '흡연여부': '흡연여부(필수, 방배정 시 고려함) - 동양미래대학교 기숙사는 금연 시설입니다.',
+            '희망하는 룸메이트 기재': '희망하는 룸메이트 기재(선택)(예시 - 20241236, 홍길동)',
+            '생활패턴': lifepattern_col,
+            '납부금액': '금액'
+        }
 
-
-
-
+        for target, source in form_cols.items():
+            if target == '기숙사 실':
+                # 원본의 'A형' 등을 위에서 정의한 긴 이름으로 변환
+                output_df[target] = df_final['배정된 방'].map(short_to_long).fillna(df_final['배정된 방'])
+            elif target == '납부금액':
+                # 원본의 'A형' 등을 기준으로 가격표에서 금액 조회
+                output_df[target] = df_final['배정된 방'].map(room_price_map).fillna(0).astype(int)
+            elif source in df_final.columns:
+                output_df[target] = df_final[source]
+            else:
+                output_df[target] = "-"
+                
+        # 3. 배정결과가 '합격'인 데이터만 추출
+        output_df = output_df[df_final['배정결과'].str.contains('합격')].copy()
+        return output_df
 def __main__():
     
     st.set_page_config(page_title="🏨 기숙사생 산정 프로그램", layout="wide")
@@ -504,41 +544,30 @@ def __main__():
 
             with tab1:
                 st.subheader("방배정 데이터 입력용")
-                        
-                      
-                output_df = pd.DataFrame() 
-
-                form_cols = {
-                    '기숙사 실': '배정된 방',
-                    '성별': domitory_assignment.gender_col,
-                    '학번': domitory_assignment.id_col,
-                    '성명': '성명(필수)',
-                    '학과(필수)': '학과(필수)',
-                    '본인 핸드폰 번호': '본인 핸드폰 번호(필수)',
-                    '흡연여부': '흡연여부(필수, 방배정 시 고려함) - 동양미래대학교 기숙사는 금연 시설입니다.',
-                    '희망하는 룸메이트 기재': '희망하는 룸메이트 기재(선택)(예시 - 20241236, 홍길동)',
-                    '생활패턴': domitory_assignment.lifepattern_col,
-                    '납부금액': '금액'
-                }
-
-                for target, source in form_cols.items():
-                    if target == '납부금액':
-                        # 여기에서만 금액을 계산해서 대입 (원본 df_final은 안 바뀜)
-                        output_df[target] = domitory_assignment.df_final['배정된 방'].map(domitory_assignment.room_price_map).fillna(0).astype(int)
-                    elif source in domitory_assignment.df_final.columns:
-                        output_df[target] = domitory_assignment.df_final[source]
-                    else:
-                        output_df[target] = "-"
                 
-                # 합격자만 필터링
-                output_df = output_df[domitory_assignment.df_final['배정결과'].str.contains('합격')]
+                # 함수 호출하여 입력용 데이터 생성
+                output_df = domitory_assignment.make_system_form(
+                    domitory_assignment.df_final,
+                    domitory_assignment.room_price_map,
+                    domitory_assignment.gender_col,
+                    domitory_assignment.id_col,
+                    domitory_assignment.lifepattern_col
+            )
                 
+                # 데이터프레임 표시
                 st.dataframe(output_df)
                 
                 # 1번 파일 다운로드
                 out1 = io.BytesIO()
-                output_df.to_excel(out1, index=False, engine='xlsxwriter')
-                st.download_button("📥 입력용 양식 다운로드", out1.getvalue(), "기숙사_시스템_입력용.xlsx")
+                with pd.ExcelWriter(out1, engine='xlsxwriter') as writer:
+                    output_df.to_excel(writer, index=False)
+                
+                st.download_button(
+                    label="📥 입력용 양식 다운로드",
+                    data=out1.getvalue(),
+                    file_name="기숙사_시스템_입력용.xlsx",
+                    mime="application/vnd.ms-excel"
+                )
 
             with tab2:
                 st.subheader("2. 전체 데이터 (점수/순위 포함)")
