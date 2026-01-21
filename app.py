@@ -197,6 +197,7 @@ class DomitoryAssignment:
         
         self.priority_col = self.find_flexible_column(self.df_students.columns, ['우선선발', '우선'])
         self.timestamp_col = self.find_flexible_column(self.df_students.columns, ['타임스탬프', 'Timestamp', '일시']) 
+        self.lifepattern_col = self.find_flexible_column(self.df_students.columns, ['생활패턴(필수)', '생활패턴'])
 
         # 지망 컬럼 (파일에 적힌 실제 긴 제목 추가)
         self.first_choice_col = self.find_flexible_column(self.df_students.columns, ['< 1지망 > 기숙사 실 선택(필수)', '1지망']) 
@@ -273,7 +274,7 @@ class DomitoryAssignment:
             if isinstance(time, (int, float)) and not pd.isna(time):
                 # 가중치 적용
                 weight = 1.0
-                if traffic == 7: weight = 3.0#비행기
+                if traffic == 7: weight = 7.0#비행기
                 elif traffic == 6: weight = 2.2#시외버스
                 elif traffic == 4: weight = 2#기차
                           
@@ -309,7 +310,8 @@ class DomitoryAssignment:
         scols=[self.id_col,   # 엑셀의 '학번(또는 수험번호)(필수)'와 정확히 일치됨
             '통학시간', 
             '교통수단', 
-            '통학 점수(70점)']
+            '통학 점수(70점)'
+            ]
         df_scores = pd.DataFrame(self.score_results, columns=scols)
         df_final =pd.merge(
             self.df_students, 
@@ -318,6 +320,7 @@ class DomitoryAssignment:
             how='left'
         )
 
+        
         df_final['통학 점수(70점)'] = df_final['통학 점수(70점)'].fillna(0)
         df_final['성적 점수(30점)'] = df_final[self.gpa_col].apply(self.calculate_score)  #환산식 수정 260115
 
@@ -403,7 +406,7 @@ class DomitoryAssignment:
 
         out_cols = list(self.df_students.columns) + [
                 '배정결과', '배정방식', '배정된 방', '금액', 
-                '최종 점수', '통학 점수(70점)', '성적 점수(30점)',
+                '최종 점수', '통학 점수(70점)', '성적 점수(30점)','생활 패턴',
                 '채점_상태', 'T_기본시간(분)'
             ]
             
@@ -478,21 +481,73 @@ def __main__():
             domitory_assignment.make_Frame()
                 
                 # 결과 출력 (기존 make_excel 대신 웹 화면 표시 및 다운로드)
-            st.success("✅ 완료!")
-            if hasattr(domitory_assignment, 'df_final'):
+            # st.success("✅ 완료!")
+            # if hasattr(domitory_assignment, 'df_final'):
+            #     st.dataframe(domitory_assignment.df_final)
+                    
+            #         # 엑셀 다운로드 버튼
+            #     output = io.BytesIO()
+            #     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            #         domitory_assignment.df_final.to_excel(writer, index=False)
+                    
+            #     st.download_button(
+            #             label="📥 결과 엑셀 파일 다운로드",
+            #             data=output.getvalue(),
+            #             file_name=f"기숙사_배정_결과_{datetime.now().strftime('%m%d_%H%M')}.xlsx",
+            #             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            #         )
+
+            st.success("✅ 모든 계산 및 배정이 완료되었습니다!")
+            
+            # 두 가지 탭으로 나누어 보여주면 훨씬 깔끔합니다
+            tab1, tab2 = st.tabs(["📄 방배정 입력용 양식", "📊 전체 배정 근거 데이터"])
+
+            with tab1:
+                st.subheader("방배정 데이터 입력용")
+                        
+                      
+                output_df = pd.DataFrame() 
+
+                form_cols = {
+                    '기숙사 실': '배정된 방',
+                    '성별': domitory_assignment.gender_col,
+                    '학번': domitory_assignment.id_col,
+                    '성명': '성명(필수)',
+                    '학과(필수)': '학과(필수)',
+                    '본인 핸드폰 번호': '본인 핸드폰 번호(필수)',
+                    '흡연여부': '흡연여부(필수, 방배정 시 고려함) - 동양미래대학교 기숙사는 금연 시설입니다.',
+                    '희망하는 룸메이트 기재': '희망하는 룸메이트 기재(선택)(예시 - 20241236, 홍길동)',
+                    '생활패턴': domitory_assignment.lifepattern_col,
+                    '납부금액': '금액'
+                }
+
+                for target, source in form_cols.items():
+                    if target == '납부금액':
+                        # 여기에서만 금액을 계산해서 대입 (원본 df_final은 안 바뀜)
+                        output_df[target] = domitory_assignment.df_final['배정된 방'].map(domitory_assignment.room_price_map).fillna(0).astype(int)
+                    elif source in domitory_assignment.df_final.columns:
+                        output_df[target] = domitory_assignment.df_final[source]
+                    else:
+                        output_df[target] = "-"
+                
+                # 합격자만 필터링
+                output_df = output_df[domitory_assignment.df_final['배정결과'].str.contains('합격')]
+                
+                st.dataframe(output_df)
+                
+                # 1번 파일 다운로드
+                out1 = io.BytesIO()
+                output_df.to_excel(out1, index=False, engine='xlsxwriter')
+                st.download_button("📥 입력용 양식 다운로드", out1.getvalue(), "기숙사_시스템_입력용.xlsx")
+
+            with tab2:
+                st.subheader("2. 전체 데이터 (점수/순위 포함)")
                 st.dataframe(domitory_assignment.df_final)
-                    
-                    # 엑셀 다운로드 버튼
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    domitory_assignment.df_final.to_excel(writer, index=False)
-                    
-                st.download_button(
-                        label="📥 결과 엑셀 파일 다운로드",
-                        data=output.getvalue(),
-                        file_name=f"기숙사_배정_결과_{datetime.now().strftime('%m%d_%H%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+                
+                # 2번 파일 다운로드
+                out2 = io.BytesIO()
+                domitory_assignment.df_final.to_excel(out2, index=False, engine='xlsxwriter')
+                st.download_button("📥 전체 근거 데이터 다운로드", out2.getvalue(), "기숙사_배정_상세결과.xlsx")
     else:
         st.info("파일을 업로드하여 시작하세요.")
 
